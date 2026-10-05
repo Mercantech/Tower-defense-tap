@@ -3,8 +3,9 @@ services:
     build: .
     restart: unless-stopped
     networks:
-      - dokploy-network
+      - default
 
 networks:
-  dokploy-network:
+  default:
+    name: dokploy-network
     external: true
