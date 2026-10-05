@@ -193,6 +193,60 @@ class TowerDefenseGame {
     this.selectedSlot = clamp(index, 0, this.buildSlots.length - 1);
   }
 
+  /** Move cursor to nearest build slot in a map direction (dx, dy in tile space). */
+  nudgeSlot(dx, dy) {
+    if (!this.buildSlots.length) return;
+    const cur = this.buildSlots[this.selectedSlot];
+    if (!cur) return;
+    let best = -1;
+    let bestScore = Infinity;
+    for (let i = 0; i < this.buildSlots.length; i++) {
+      if (i === this.selectedSlot) continue;
+      const s = this.buildSlots[i];
+      const sx = s.x - cur.x;
+      const sy = s.y - cur.y;
+      const proj = sx * dx + sy * dy;
+      if (proj <= 0) continue;
+      const perp = Math.abs(sx * -dy + sy * dx);
+      // Prefer forward steps that stay aligned with the intended axis
+      const score = proj * 1.15 + perp * 2.4 + Math.hypot(sx, sy) * 0.35;
+      if (score < bestScore) {
+        bestScore = score;
+        best = i;
+      }
+    }
+    if (best >= 0) this.selectedSlot = best;
+  }
+
+  /** Jump to nearest empty build slot (or next empty along path order). */
+  jumpEmptySlot() {
+    if (!this.buildSlots.length) return;
+    const n = this.buildSlots.length;
+    for (let step = 1; step <= n; step++) {
+      const i = (this.selectedSlot + step) % n;
+      const s = this.buildSlots[i];
+      if (!this.towers.has(`${s.x},${s.y}`)) {
+        this.selectedSlot = i;
+        return;
+      }
+    }
+  }
+
+  selectNearestSlot(tx, ty) {
+    if (!this.buildSlots.length) return;
+    let best = 0;
+    let bestD = Infinity;
+    for (let i = 0; i < this.buildSlots.length; i++) {
+      const s = this.buildSlots[i];
+      const d = Math.hypot(s.x + 0.5 - tx, s.y + 0.5 - ty);
+      if (d < bestD) {
+        bestD = d;
+        best = i;
+      }
+    }
+    this.selectedSlot = best;
+  }
+
   cycleTowerType(delta) {
     const n = TOWER_TYPES.length;
     this.selectedTowerType = ((this.selectedTowerType + delta) % n + n) % n;
@@ -206,14 +260,54 @@ class TowerDefenseGame {
       this.reset();
       return true;
     }
-    if (this.gameState !== 'playing' && a !== 'start') return false;
+
+    const buildNav =
+      a === 'slot_left' ||
+      a === 'left' ||
+      a === 'slot_right' ||
+      a === 'right' ||
+      a === 'slot_up' ||
+      a === 'slot_down' ||
+      a === 'slot_cycle_prev' ||
+      a === 'slot_cycle_next' ||
+      a === 'jump_empty' ||
+      a === 'type_prev' ||
+      a === 'up' ||
+      a === 'type_next' ||
+      a === 'down' ||
+      a === 'select_slot' ||
+      a === 'select_nearest' ||
+      a === 'select_type';
+
+    // Allow cursor / type browsing before and after a run
+    if (this.gameState !== 'playing' && !buildNav && a !== 'start') return false;
 
     if (a === 'slot_left' || a === 'left') {
-      this.setSlotCursor(-1);
+      this.nudgeSlot(-1, 0);
       return true;
     }
     if (a === 'slot_right' || a === 'right') {
+      this.nudgeSlot(1, 0);
+      return true;
+    }
+    if (a === 'slot_up') {
+      this.nudgeSlot(0, -1);
+      return true;
+    }
+    if (a === 'slot_down') {
+      this.nudgeSlot(0, 1);
+      return true;
+    }
+    if (a === 'slot_cycle_prev') {
+      this.setSlotCursor(-1);
+      return true;
+    }
+    if (a === 'slot_cycle_next') {
       this.setSlotCursor(1);
+      return true;
+    }
+    if (a === 'jump_empty') {
+      this.jumpEmptySlot();
       return true;
     }
     if (a === 'type_prev' || a === 'up') {
@@ -235,6 +329,10 @@ class TowerDefenseGame {
     }
     if (a === 'select_slot' && params.index != null) {
       this.setSlotIndex(Number(params.index));
+      return true;
+    }
+    if (a === 'select_nearest' && params.x != null && params.y != null) {
+      this.selectNearestSlot(Number(params.x), Number(params.y));
       return true;
     }
     if (a === 'select_type' && params.index != null) {
@@ -469,6 +567,21 @@ class TowerDefenseGame {
     const slot = this.buildSlots[this.selectedSlot] || null;
     const type = TOWER_TYPES[this.selectedTowerType];
     const occupied = slot ? this.towers.get(`${slot.x},${slot.y}`) : null;
+    const upgradeDef = occupied
+      ? TOWER_TYPES.find((t) => t.id === occupied.typeId)
+      : null;
+    const canUpgrade = !!(
+      this.gameState === 'playing' &&
+      occupied &&
+      occupied.level < 3 &&
+      this.gold >= (upgradeDef?.upgradeCost || 999)
+    );
+    const canPlace = !!(
+      this.gameState === 'playing' &&
+      slot &&
+      !occupied &&
+      this.gold >= type.cost
+    );
     return {
       grid: { width: GRID_W, height: GRID_H, tile: TILE },
       path: this.path,
@@ -498,18 +611,27 @@ class TowerDefenseGame {
       selectedTowerType: this.selectedTowerType,
       towerTypes: TOWER_TYPES,
       cursor: slot,
-      canPlace: !!(
-        this.gameState === 'playing' &&
-        slot &&
-        !occupied &&
-        this.gold >= type.cost
-      ),
-      canUpgrade: !!(
-        this.gameState === 'playing' &&
-        occupied &&
-        occupied.level < 3 &&
-        this.gold >= (TOWER_TYPES.find((t) => t.id === occupied.typeId)?.upgradeCost || 999)
-      ),
+      cursorOccupied: occupied
+        ? {
+            typeId: occupied.typeId,
+            level: occupied.level,
+            range: occupied.range,
+            color: occupied.color,
+            upgradeCost: upgradeDef?.upgradeCost || 0,
+          }
+        : null,
+      ghost: !occupied
+        ? {
+            typeId: type.id,
+            name: type.name,
+            color: type.color,
+            range: type.range,
+            cost: type.cost,
+            canAfford: this.gold >= type.cost,
+          }
+        : null,
+      canPlace,
+      canUpgrade,
       spawnRemaining: this.spawnQueue.length,
       enemyCount: this.enemies.length,
     };
