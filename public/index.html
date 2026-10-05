@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TOWER DEFENSE TAP</title>
+  <script>
+    (function () {
+      var m = location.pathname.match(/^(\/TowerDefense)(?=\/|$)/i) ||
+              location.pathname.match(/^(\/Tower-defense-tap)(?=\/|$)/i);
+      if (!m) return;
+      var base = document.createElement('base');
+      base.href = m[1] + '/';
+      document.currentScript.after(base);
+      if (location.pathname === m[1]) {
+        location.replace(m[1] + '/' + location.search + location.hash);
+      }
+    })();
+  </script>
+  <link rel="stylesheet" href="style.css?v=1">
+  <link rel="stylesheet" href="arena-nav.css?v=1">
+</head>
+<body>
+  <script src="arena-nav.js?v=1"></script>
+  <div id="app">
+    <header class="top">
+      <div class="brand">
+        <p class="kicker">MERCANTEC · OPLÀ</p>
+        <h1>TOWER DEFENSE TAP</h1>
+      </div>
+      <div class="hud" id="hud">
+        <div class="stat"><span>GOLD</span><strong id="gold">0</strong></div>
+        <div class="stat"><span>LIVES</span><strong id="lives">0</strong></div>
+        <div class="stat"><span>WAVE</span><strong id="wave">0</strong></div>
+        <div class="stat"><span>SCORE</span><strong id="score">0</strong></div>
+      </div>
+      <div class="actions">
+        <button type="button" id="btn-start">START</button>
+        <button type="button" id="btn-reset" class="ghost">RESET</button>
+      </div>
+    </header>
+
+    <main class="stage">
+      <div class="board-wrap">
+        <canvas id="board" width="672" height="480"></canvas>
+        <div id="overlay" class="overlay">
+          <div class="overlay-card">
+            <h2 id="overlay-title">FÆSTNINGEN VENTER</h2>
+            <p id="overlay-text">Placér tårne på markerede slots. Overlev 12 waves.</p>
+            <p class="overlay-hint">START eller Space for at begynde</p>
+          </div>
+        </div>
+      </div>
+
+      <aside class="side">
+        <section class="panel">
+          <h2>TÅRN</h2>
+          <div id="tower-list" class="tower-list"></div>
+          <p class="hint" id="place-hint">TOUCH4 / Space = byg eller opgrader</p>
+        </section>
+        <section class="panel">
+          <h2>PAD-MAP</h2>
+          <ul class="pad-map">
+            <li><kbd>←</kbd> / TOUCH1 · forrige slot</li>
+            <li><kbd>→</kbd> / TOUCH3 · næste slot</li>
+            <li><kbd>↑</kbd> / TOUCH2 · forrige tårn</li>
+            <li><kbd>↓</kbd> / TOUCH0 · næste tårn</li>
+            <li><kbd>Space</kbd> / TOUCH4 · place / upgrade</li>
+            <li><kbd>X</kbd> · sælg tårn</li>
+          </ul>
+        </section>
+        <section class="panel status-panel">
+          <h2>STATUS</h2>
+          <p id="status-line">Klar</p>
+        </section>
+      </aside>
+    </main>
+  </div>
+  <script src="client.js?v=1"></script>
+</body>
+</html>
