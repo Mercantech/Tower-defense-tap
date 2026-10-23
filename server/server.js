@@ -36,7 +36,8 @@ function broadcastState() {
 function ensureTick() {
   if (tickInterval) return;
   tickInterval = setInterval(() => {
-    if (game.gameState !== 'playing') {
+    const gs = game.gameState;
+    if (gs !== 'playing' && gs !== 'paused') {
       clearInterval(tickInterval);
       tickInterval = null;
       broadcastState();
@@ -49,7 +50,12 @@ function ensureTick() {
 
 function applyAction(action, params) {
   const ok = game.applyAction(action, params || {});
-  if (action === 'start' && game.gameState === 'playing') ensureTick();
+  if (
+    (action === 'start' || action === 'pause') &&
+    (game.gameState === 'playing' || game.gameState === 'paused')
+  ) {
+    ensureTick();
+  }
   broadcastState();
   return ok;
 }
@@ -128,7 +134,6 @@ async function handleControllerApi(req, res, pathname) {
       }
 
       let resolved = action || params?.action;
-      // Map move directions to slot/type like the pad layout
       if (resolved === 'move') {
         const dir = String(direction || params?.direction || '').toUpperCase();
         if (dir === 'LEFT') resolved = 'slot_left';
@@ -220,7 +225,12 @@ wss.on('connection', (ws) => {
       const type = msg.type;
       if (type === 'start') applyAction('start');
       else if (type === 'reset') applyAction('reset');
-      else if (type === 'action') applyAction(msg.action, msg.params);
+      else if (type === 'configure') {
+        applyAction('configure', {
+          mapId: msg.mapId || msg.data?.mapId,
+          difficulty: msg.difficulty || msg.data?.difficulty,
+        });
+      } else if (type === 'action') applyAction(msg.action, msg.params);
       else if (type === 'input' && msg.data) {
         applyAction(msg.data.action, msg.data);
       }

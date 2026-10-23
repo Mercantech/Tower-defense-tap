@@ -1,8 +1,10 @@
 # Tower Defense Tap
 
-Singleplayer **tower defense** styret med **5 knapper** (keyboard eller Arduino Oplà) — Mercantec Games-mønster.
+**Tower defense** styret med **5 knapper** (keyboard eller Arduino Oplà) — Mercantec Games-mønster.
 
-**Idé:** Flyt cursor langs build-slots, vælg tårntype, byg/opgrader. Overlev **12 waves**.
+**Sessionsmodel:** Én fælles fæstning (ingen PIN-lobby). Alle browsere og pads deler samme run.
+
+Vælg **kort** + **sværhedsgrad**, overlev **18 waves** (boss på 6 / 12 / 18).
 
 ## Kør lokalt
 
@@ -22,28 +24,53 @@ docker compose -f docker-compose.yml -f docker-compose.local.yml up --build
 
 Port **8090** → container 8080.
 
-## Styring (5-pad)
+## Kort & sværhed
+
+| Kort | Karakter |
+|------|----------|
+| **COURTYARD** | Klassisk snake (default) |
+| **SERPENT** | Længere S-sti, flere build-slots |
+| **GAUNTLET** | Kortere sti, højere tryk |
+
+| Sværhed | Effekt |
+|---------|--------|
+| **NORMAL** | Standard HP/guld |
+| **HARD** | HP ×1.35, bounty ×0.9, −20 startguld |
+
+## Styring
 
 | Input | Handling |
 |-------|----------|
-| ← / TOUCH1 | Forrige build-slot |
-| → / TOUCH3 | Næste build-slot |
-| ↑ / TOUCH2 | Forrige tårntype |
-| ↓ / TOUCH0 | Næste tårntype |
+| ←→↑↓ / WASD | Flyt cursor på kortet (spatial) |
+| Q / E | Skift tårntype |
+| 1–6 | Vælg tårn direkte |
+| Tab | Hop til næste tomme slot |
 | Space / TOUCH4 | Byg eller opgrader |
-| X | Sælg tårn (refund ~60%) |
+| X | Sælg tårn (refund 60%) |
+| N | Call next wave (+8g hvis board clear) |
+| 2 | Hastighed 1× / 2× |
+| P | Pause |
+| TOUCH1/3 | Venstre/højre slot |
+| TOUCH0/2 | Tårntype |
 
-## Tårne
+## Tårne (6)
 
-| Type | Rolle |
-|------|--------|
-| **ARROW** | Billig, hurtig single-target |
-| **CANNON** | Dyrere, splash |
-| **FROST** | Slow + skade |
+| Type | Rolle | Lvl 3 perk |
+|------|--------|------------|
+| **ARROW** | Billig DPS | Piercing |
+| **CANNON** | Splash | Stor splash |
+| **FROST** | Slow | Splash-slow |
+| **SNIPER** | Lang range, anti-air | Crit 30% |
+| **BARRACKS** | Aura | +22% fire rate til allies |
+| **ARC** | Chain lightning, anti-air | 3 hops |
+
+## Fjender
+
+Grunt, Tank, Runner, Swarm, Armored (fysisk resist), Flying (kun anti-air), Boss.
 
 ## Controller API (Oplà)
 
-Samme kontrakt som Bomberman/Tetris:
+Samme kontrakt som Bomberman/Tetris (uden PIN):
 
 | Endpoint | Body |
 |----------|------|
@@ -51,14 +78,17 @@ Samme kontrakt som Bomberman/Tetris:
 | `POST /api/controller/heartbeat` | `{ playerId }` |
 | `POST /api/controller/action` | `{ playerId, action, params? }` |
 
-Actions: `slot_left`, `slot_right`, `type_prev`, `type_next`, `place`, `sell`, `start`, `reset`  
+Actions: `slot_left`, `slot_right`, `slot_up`, `slot_down`, `type_prev`, `type_next`, `place`, `sell`, `start`, `reset`, `next_wave`, `speed`, `pause`  
 Alternativt: `move` + `LEFT`/`RIGHT`/`UP`/`DOWN`, eller `bomb` = place.
+
+> **Firmware-note:** `GAME_MODE_TOWER` i Games-repoet er follow-up — action-kontrakten ovenfor matcher UI’et.
 
 ## WebSocket
 
+- `configure` — `{ mapId, difficulty }` (før start; første vinder i delt arena)
 - `start` / `reset`
 - `action` — `{ action, params? }`
-- Server broadcaster `state`
+- Server broadcaster `state` (~30 Hz) inkl. `events[]` til VFX/SFX
 
 ## Health
 
@@ -66,18 +96,15 @@ Alternativt: `move` + `LEFT`/`RIGHT`/`UP`/`DOWN`, eller `bomb` = place.
 
 ## Produktion (Dokploy)
 
-Traefik PathPrefix fx `/TowerDefense` + StripPrefix. Sæt `GAME_BASE_PATH=/TowerDefense` i Arduino når I tilføjer `GAME_MODE`.
+Traefik PathPrefix `/TowerDefense` + StripPrefix. Live: https://games.mercantec.tech/TowerDefense/
 
 ## Filstruktur
 
 ```
 Tower-defense-tap/
-  Dockerfile
-  docker-compose.yml
-  docker-compose.local.yml
-  public/          # UI + canvas
+  public/           # hub UI, render.js, sfx.js, client.js
   server/
-    game.js        # engine
-    server.js      # HTTP + WS + controller
-    package.json
+    content/        # maps, towers, enemies, waves
+    game.js         # simulation
+    server.js       # HTTP + WS + controller
 ```

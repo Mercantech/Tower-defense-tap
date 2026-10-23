@@ -17,7 +17,7 @@
       }
     })();
   </script>
-  <link rel="stylesheet" href="style.css?v=2">
+  <link rel="stylesheet" href="style.css?v=3">
   <link rel="stylesheet" href="arena-nav.css?v=2">
 </head>
 <body>
@@ -33,22 +33,51 @@
         <div class="stat lives"><span>LIVES</span><strong id="lives">0</strong></div>
         <div class="stat"><span>WAVE</span><strong id="wave">0</strong></div>
         <div class="stat"><span>SCORE</span><strong id="score">0</strong></div>
+        <div class="stat"><span>SPEED</span><strong id="speed-label">1×</strong></div>
       </div>
       <div class="actions">
+        <button type="button" id="btn-speed" class="ghost" title="Hastighed (2)">1×</button>
+        <button type="button" id="btn-pause" class="ghost" title="Pause (P)">❚❚</button>
+        <button type="button" id="btn-mute" class="ghost" title="Mute">♪</button>
         <button type="button" id="btn-start">START</button>
         <button type="button" id="btn-reset" class="ghost">RESET</button>
       </div>
     </header>
 
-    <main class="stage">
+    <!-- Pre-game hub -->
+    <section id="hub" class="hub">
+      <div class="hub-hero">
+        <p class="hub-kicker">ÉN FÆLLES FÆSTNING</p>
+        <h2 class="hub-title">TOWER DEFENSE TAP</h2>
+        <p class="hub-lead">Vælg kort og sværhedsgrad. Alle browsere og pads deler den samme run.</p>
+      </div>
+      <div class="hub-grid">
+        <div class="hub-block">
+          <h3>KORT</h3>
+          <div id="map-cards" class="map-cards"></div>
+        </div>
+        <div class="hub-block">
+          <h3>SVÆRHED</h3>
+          <div id="diff-cards" class="diff-cards"></div>
+        </div>
+      </div>
+      <div class="hub-cta">
+        <button type="button" id="btn-hub-start" class="hub-start">START FÆSTNING</button>
+        <p class="hub-highscore">Session highscore: <strong id="highscore">0</strong></p>
+      </div>
+    </section>
+
+    <main class="stage" id="stage" hidden>
       <div class="board-col">
         <div class="board-wrap">
           <canvas id="board" width="672" height="480"></canvas>
           <div id="place-banner" class="place-banner" hidden></div>
-          <div id="overlay" class="overlay">
+          <div id="next-wave-chip" class="next-wave-chip" hidden></div>
+          <div id="overlay" class="overlay hidden">
             <div class="overlay-card">
               <h2 id="overlay-title">FÆSTNINGEN VENTER</h2>
-              <p id="overlay-text">Peg på et slot, se det gennemsigtige tårn, og byg. Overlev 12 waves.</p>
+              <p id="overlay-text">Peg på et slot, se det gennemsigtige tårn, og byg.</p>
+              <div id="overlay-breakdown" class="overlay-breakdown" hidden></div>
               <p class="overlay-hint">START eller Space for at begynde</p>
             </div>
           </div>
@@ -70,9 +99,10 @@
             <p id="slot-meta" class="slot-meta">Slot —</p>
             <div class="nav-btns">
               <button type="button" id="btn-jump" class="ghost sm">NÆSTE TOM (Tab)</button>
+              <button type="button" id="btn-next-wave" class="ghost sm">NÆSTE WAVE (N)</button>
               <button type="button" id="btn-sell" class="ghost sm danger">SÆLG (X)</button>
             </div>
-            <p class="nav-tip">Pile / WASD flytter cursor · Q/E skifter tårn · klik på kortet</p>
+            <p class="nav-tip">Pile / WASD · Q/E tårn · 2 hastighed · P pause · N call wave</p>
           </div>
         </div>
       </div>
@@ -84,15 +114,23 @@
           <p class="hint" id="place-hint">Gennemsigtigt preview viser hvor du bygger</p>
         </section>
         <section class="panel">
+          <h2>FJENDER</h2>
+          <div id="enemy-legend" class="enemy-legend"></div>
+        </section>
+        <section class="panel">
+          <h2>WAVES</h2>
+          <div id="wave-list" class="wave-list"></div>
+        </section>
+        <section class="panel">
           <h2>STYRING</h2>
           <ul class="pad-map">
-            <li><kbd>←→↑↓</kbd> / WASD · flyt cursor på kortet</li>
+            <li><kbd>←→↑↓</kbd> / WASD · flyt cursor</li>
             <li><kbd>Q</kbd>/<kbd>E</kbd> · skift tårntype</li>
-            <li><kbd>1</kbd>–<kbd>3</kbd> · vælg tårn direkte</li>
-            <li><kbd>Tab</kbd> · hop til næste tomme slot</li>
+            <li><kbd>1</kbd>–<kbd>6</kbd> · vælg tårn</li>
+            <li><kbd>Tab</kbd> · hop til tomt slot</li>
             <li><kbd>Space</kbd> / TOUCH4 · byg / opgrader</li>
-            <li><kbd>X</kbd> · sælg tårn</li>
-            <li>TOUCH1/3 · venstre/højre · TOUCH0/2 · tårntype</li>
+            <li><kbd>X</kbd> · sælg · <kbd>N</kbd> · call wave (+8g)</li>
+            <li><kbd>2</kbd> · hastighed · <kbd>P</kbd> · pause</li>
           </ul>
         </section>
         <section class="panel status-panel">
@@ -102,6 +140,8 @@
       </aside>
     </main>
   </div>
-  <script src="client.js?v=2"></script>
+  <script src="sfx.js?v=3"></script>
+  <script src="render.js?v=3"></script>
+  <script src="client.js?v=3"></script>
 </body>
 </html>
