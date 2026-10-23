@@ -151,6 +151,7 @@
       </button>`
       )
       .join('');
+    /* data-map drives soft gradient accents in CSS */
 
     mapCards.querySelectorAll('[data-map]').forEach((btn) => {
       btn.addEventListener('click', () => {
