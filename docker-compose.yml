@@ -3,7 +3,7 @@ services:
     build:
       context: .
       args:
-        CACHE_BUST: "sprites-kenney-v1"
+        CACHE_BUST: "sprites-kenney-v2"
     restart: unless-stopped
     networks:
       - default
