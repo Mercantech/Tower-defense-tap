@@ -3,7 +3,7 @@ services:
     build:
       context: .
       args:
-        CACHE_BUST: "sprites-kenney-v2"
+        CACHE_BUST: "tower-list-layout-v1"
     restart: unless-stopped
     networks:
       - default

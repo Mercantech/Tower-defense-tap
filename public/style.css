@@ -779,7 +779,7 @@ button:active {
 
 .tower-card {
   display: grid;
-  grid-template-columns: 8px 1fr auto;
+  grid-template-columns: 32px minmax(0, 1fr) auto;
   gap: 0.65rem;
   align-items: center;
   width: 100%;
@@ -823,7 +823,13 @@ button:active {
   width: 28px;
   height: 28px;
   object-fit: contain;
+  flex-shrink: 0;
+  justify-self: center;
   filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+}
+
+.tower-card > div {
+  min-width: 0;
 }
 
 .tower-card strong {
@@ -831,6 +837,9 @@ button:active {
   font-size: 0.76rem;
   font-weight: 600;
   color: var(--cream);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .tower-card span {
@@ -869,7 +878,7 @@ button:active {
 
 .enemy-row {
   display: grid;
-  grid-template-columns: 12px 1fr auto;
+  grid-template-columns: 24px minmax(0, 1fr) auto;
   gap: 0.45rem;
   align-items: center;
   font-size: 0.72rem;
