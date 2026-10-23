@@ -1,6 +1,9 @@
 services:
   towerdefense:
-    build: .
+    build:
+      context: .
+      args:
+        CACHE_BUST: "visual-v4"
     restart: unless-stopped
     networks:
       - default
