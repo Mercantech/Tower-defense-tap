@@ -9,10 +9,14 @@
     return BASE + 't' + String(n).padStart(3, '0') + '.png';
   }
 
-  /** Gameplay → Kenney tile ids */
+  function asset(name) {
+    return BASE + name;
+  }
+
+  /** Gameplay → Kenney tile ids / files */
   const MAP = {
     grass: 24,
-    path: 48,
+    pathFile: 'path_solid.png',
     pad: 181,
     bush: 130,
     rock: 135,
@@ -53,7 +57,7 @@
       if (this._loadPromise) return this._loadPromise;
       const urls = new Set();
       urls.add(tile(MAP.grass));
-      urls.add(tile(MAP.path));
+      urls.add(asset(MAP.pathFile));
       urls.add(tile(MAP.pad));
       urls.add(tile(MAP.bush));
       urls.add(tile(MAP.rock));
@@ -128,8 +132,8 @@
     grass() {
       return MAP.grass;
     }
-    path() {
-      return MAP.path;
+    pathImg() {
+      return this.images.get(asset(MAP.pathFile)) || null;
     }
     pad() {
       return MAP.pad;

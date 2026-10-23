@@ -117,7 +117,7 @@
       const g = off.getContext('2d');
       const pathSet = new Set(state.path.map((p) => `${p.x},${p.y}`));
       const grassImg = spritesOn ? this.atlas.get(this.atlas.grass()) : null;
-      const pathImg = spritesOn ? this.atlas.get(this.atlas.path()) : null;
+      const pathImg = spritesOn ? this.atlas.pathImg() : null;
       const padImg = spritesOn ? this.atlas.get(this.atlas.pad()) : null;
       const bushImg = spritesOn ? this.atlas.get(this.atlas.bush()) : null;
       const rockImg = spritesOn ? this.atlas.get(this.atlas.rock()) : null;
