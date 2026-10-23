@@ -25,9 +25,10 @@
   }
 
   class TowerRenderer {
-    constructor(canvas) {
+    constructor(canvas, atlas) {
       this.canvas = canvas;
       this.ctx = canvas.getContext('2d');
+      this.atlas = atlas || null;
       this.groundCache = null;
       this.groundKey = '';
       this.particles = [];
@@ -35,6 +36,12 @@
       this.chains = [];
       this.shake = 0;
       this.animT = 0;
+      this.enemyFacing = new Map();
+    }
+
+    setAtlas(atlas) {
+      this.atlas = atlas;
+      this.invalidateGround();
     }
 
     invalidateGround() {
@@ -97,7 +104,8 @@
     }
 
     _ensureGround(state) {
-      const key = `${state.mapId}|${state.path.length}|${state.buildSlots.length}`;
+      const spritesOn = !!(this.atlas && this.atlas.ready);
+      const key = `${state.mapId}|${state.path.length}|${state.buildSlots.length}|spr:${spritesOn}`;
       const tw = state.grid.tile;
       const gw = state.grid.width;
       const gh = state.grid.height;
@@ -107,74 +115,87 @@
       off.width = gw * tw;
       off.height = gh * tw;
       const g = off.getContext('2d');
+      const pathSet = new Set(state.path.map((p) => `${p.x},${p.y}`));
+      const grassImg = spritesOn ? this.atlas.get(this.atlas.grass()) : null;
+      const pathImg = spritesOn ? this.atlas.get(this.atlas.path()) : null;
+      const padImg = spritesOn ? this.atlas.get(this.atlas.pad()) : null;
+      const bushImg = spritesOn ? this.atlas.get(this.atlas.bush()) : null;
+      const rockImg = spritesOn ? this.atlas.get(this.atlas.rock()) : null;
 
-      // Soft grass field
       for (let y = 0; y < gh; y++) {
         for (let x = 0; x < gw; x++) {
-          const base = (x + y) % 2 === 0;
-          const grad = g.createLinearGradient(x * tw, y * tw, x * tw, y * tw + tw);
-          grad.addColorStop(0, base ? '#2f5238' : '#274830');
-          grad.addColorStop(1, base ? '#26452f' : '#1f3a28');
-          g.fillStyle = grad;
-          g.fillRect(x * tw, y * tw, tw, tw);
+          const keyXY = `${x},${y}`;
+          if (pathSet.has(keyXY) && pathImg) {
+            g.drawImage(pathImg, x * tw, y * tw, tw, tw);
+          } else if (grassImg) {
+            g.drawImage(grassImg, x * tw, y * tw, tw, tw);
+            // Subtle checker tint for depth
+            if ((x + y) % 2 === 0) {
+              g.fillStyle = 'rgba(0,0,0,0.04)';
+              g.fillRect(x * tw, y * tw, tw, tw);
+            }
+          } else {
+            const base = (x + y) % 2 === 0;
+            g.fillStyle = base ? '#2f5238' : '#274830';
+            g.fillRect(x * tw, y * tw, tw, tw);
+          }
         }
       }
 
-      // Ambient vignette
+      // Decor bushes/rocks on some non-path grass tiles (deterministic)
+      if (bushImg || rockImg) {
+        for (let y = 0; y < gh; y++) {
+          for (let x = 0; x < gw; x++) {
+            if (pathSet.has(`${x},${y}`)) continue;
+            const h = (x * 17 + y * 31 + (state.mapId || '').length * 7) % 23;
+            if (h === 3 && bushImg) {
+              g.drawImage(bushImg, x * tw + tw * 0.12, y * tw + tw * 0.1, tw * 0.76, tw * 0.76);
+            } else if (h === 11 && rockImg) {
+              g.drawImage(rockImg, x * tw + tw * 0.18, y * tw + tw * 0.18, tw * 0.64, tw * 0.64);
+            }
+          }
+        }
+      }
+
+      // Path overlay if no sprite path
+      if (!pathImg) {
+        for (const p of state.path) {
+          roundRect(g, p.x * tw + 3, p.y * tw + 3, tw - 6, tw - 6, 10);
+          g.fillStyle = '#c4a06a';
+          g.fill();
+        }
+      }
+
+      // Build pads
+      for (const s of state.buildSlots) {
+        if (pathSet.has(`${s.x},${s.y}`)) continue;
+        if (padImg) {
+          g.globalAlpha = 0.55;
+          g.drawImage(padImg, s.x * tw + 4, s.y * tw + 4, tw - 8, tw - 8);
+          g.globalAlpha = 1;
+        } else {
+          const hx = s.x * tw + tw / 2;
+          const hy = s.y * tw + tw / 2;
+          g.beginPath();
+          g.arc(hx, hy, 6, 0, Math.PI * 2);
+          g.fillStyle = 'rgba(232,196,106,0.12)';
+          g.fill();
+        }
+      }
+
+      // Vignette
       const vig = g.createRadialGradient(
         (gw * tw) / 2,
         (gh * tw) / 2,
-        Math.min(gw, gh) * tw * 0.25,
+        Math.min(gw, gh) * tw * 0.3,
         (gw * tw) / 2,
         (gh * tw) / 2,
-        Math.max(gw, gh) * tw * 0.72
+        Math.max(gw, gh) * tw * 0.75
       );
       vig.addColorStop(0, 'rgba(0,0,0,0)');
-      vig.addColorStop(1, 'rgba(0,0,0,0.28)');
+      vig.addColorStop(1, 'rgba(0,0,0,0.22)');
       g.fillStyle = vig;
       g.fillRect(0, 0, gw * tw, gh * tw);
-
-      // Soft stone rim
-      g.fillStyle = 'rgba(42, 36, 28, 0.55)';
-      g.fillRect(0, 0, gw * tw, 6);
-      g.fillRect(0, gh * tw - 6, gw * tw, 6);
-      g.fillRect(0, 0, 6, gh * tw);
-      g.fillRect(gw * tw - 6, 0, 6, gh * tw);
-
-      // Rounded path tiles
-      for (const p of state.path) {
-        const px = p.x * tw + 3;
-        const py = p.y * tw + 3;
-        const pw = tw - 6;
-        const ph = tw - 6;
-        roundRect(g, px, py, pw, ph, 10);
-        const pg = g.createLinearGradient(px, py, px, py + ph);
-        pg.addColorStop(0, '#d4b484');
-        pg.addColorStop(1, '#b8925c');
-        g.fillStyle = pg;
-        g.fill();
-        g.strokeStyle = 'rgba(60, 40, 20, 0.25)';
-        g.lineWidth = 1;
-        g.stroke();
-
-        roundRect(g, px + 9, py + 9, pw - 18, ph - 18, 6);
-        g.fillStyle = 'rgba(140, 100, 55, 0.35)';
-        g.fill();
-      }
-
-      const pathSet = new Set(state.path.map((p) => `${p.x},${p.y}`));
-      for (const s of state.buildSlots) {
-        if (pathSet.has(`${s.x},${s.y}`)) continue;
-        const hx = s.x * tw + tw / 2;
-        const hy = s.y * tw + tw / 2;
-        g.beginPath();
-        g.arc(hx, hy, 6, 0, Math.PI * 2);
-        g.fillStyle = 'rgba(232,196,106,0.12)';
-        g.fill();
-        g.strokeStyle = 'rgba(232,196,106,0.28)';
-        g.lineWidth = 1.25;
-        g.stroke();
-      }
 
       const start = state.path[0];
       const end = state.path[state.path.length - 1];
@@ -205,6 +226,30 @@
 
     drawTowerBody(cx, cy, color, level, alpha, typeId) {
       const ctx = this.ctx;
+      const size = 28 + level * 4;
+      if (this.atlas && this.atlas.ready) {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        // Soft drop shadow
+        ctx.beginPath();
+        ctx.ellipse(cx, cy + size * 0.38, size * 0.38, size * 0.14, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.28)';
+        ctx.fill();
+        this.atlas.drawTower(ctx, typeId || 'arrow', cx, cy, size, level);
+        // Level badge
+        ctx.beginPath();
+        ctx.arc(cx + size * 0.32, cy + size * 0.28, 8, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(10,14,12,0.8)';
+        ctx.fill();
+        ctx.fillStyle = '#efe6d4';
+        ctx.font = 'bold 10px IBM Plex Mono, monospace';
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(String(level), cx + size * 0.32, cy + size * 0.28);
+        ctx.restore();
+        return;
+      }
+
       ctx.save();
       ctx.globalAlpha = alpha;
       const r = 11 + level * 2;
@@ -312,56 +357,54 @@
       const cy = e.y * tw + tw / 2;
       const r = Math.max(7, (e.radius || 0.28) * tw);
       const color = e.color || '#e25555';
+      const size = Math.max(22, r * 2.2);
 
-      // Shadow
-      ctx.beginPath();
-      ctx.ellipse(cx, cy + r * 0.7, r * 0.7, r * 0.25, 0, 0, Math.PI * 2);
-      ctx.fillStyle = 'rgba(0,0,0,0.25)';
-      ctx.fill();
+      // Facing along path
+      let facing = this.enemyFacing.get(e.id) || 0;
+      if (e._px != null) {
+        const dx = e.x - e._px;
+        const dy = e.y - e._py;
+        if (Math.hypot(dx, dy) > 0.001) facing = Math.atan2(dy, dx);
+      }
+      e._px = e.x;
+      e._py = e.y;
+      this.enemyFacing.set(e.id, facing);
 
       if (e.kind === 'boss') {
         ctx.beginPath();
-        ctx.arc(cx, cy, r + 7 + pulse * 5, 0, Math.PI * 2);
+        ctx.arc(cx, cy, size * 0.62 + pulse * 5, 0, Math.PI * 2);
         ctx.strokeStyle = hexAlpha(color, 0.3 + pulse * 0.3);
         ctx.lineWidth = 2.5;
         ctx.stroke();
       }
 
-      const fill = e.slowed ? hexAlpha('#5eb8d4', 0.9) : color;
-      const grad = ctx.createRadialGradient(cx - r * 0.25, cy - r * 0.3, 1, cx, cy, r);
-      grad.addColorStop(0, hexAlpha('#ffffff', 0.28));
-      grad.addColorStop(0.5, fill);
-      grad.addColorStop(1, hexAlpha(fill, 0.8));
-
-      ctx.beginPath();
-      if (e.flying) {
-        ctx.ellipse(cx, cy - 3, r * 0.95, r * 0.68, 0, 0, Math.PI * 2);
-      } else if (e.kind === 'tank' || e.kind === 'armored') {
-        roundRect(ctx, cx - r, cy - r * 0.85, r * 2, r * 1.7, 6);
-      } else if (e.kind === 'swarm') {
-        ctx.arc(cx, cy, r * 0.85, 0, Math.PI * 2);
-      } else {
-        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+      let drew = false;
+      if (this.atlas && this.atlas.ready) {
+        ctx.save();
+        if (e.slowed) ctx.filter = 'hue-rotate(160deg) saturate(1.2)';
+        drew = this.atlas.drawEnemy(ctx, e.kind, cx, cy - (e.flying ? 4 : 0), size, facing + Math.PI / 2);
+        ctx.restore();
       }
-      ctx.fillStyle = grad;
-      ctx.fill();
-      ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-      ctx.lineWidth = 1.75;
-      ctx.stroke();
 
-      if (e.flying) {
-        ctx.fillStyle = 'rgba(255,255,255,0.22)';
+      if (!drew) {
         ctx.beginPath();
-        ctx.ellipse(cx, cy + r + 1, r * 0.75, 3.5, 0, 0, Math.PI * 2);
+        ctx.ellipse(cx, cy + r * 0.7, r * 0.7, r * 0.25, 0, 0, Math.PI * 2);
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
         ctx.fill();
+        const fill = e.slowed ? hexAlpha('#5eb8d4', 0.9) : color;
+        ctx.beginPath();
+        ctx.arc(cx, cy, r, 0, Math.PI * 2);
+        ctx.fillStyle = fill;
+        ctx.fill();
+        ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+        ctx.stroke();
       }
 
-      // Soft HP bar
       const pct = Math.max(0, e.hp / e.maxHp);
-      const bw = Math.max(22, r * 2.1);
+      const bw = Math.max(22, size * 0.9);
       const bh = 5;
       const bx = cx - bw / 2;
-      const by = cy - r - 11;
+      const by = cy - size * 0.55 - 8;
       roundRect(ctx, bx, by, bw, bh, 3);
       ctx.fillStyle = 'rgba(10,14,12,0.75)';
       ctx.fill();
@@ -503,20 +546,23 @@
       for (const p of state.projectiles) {
         const px = p.x * tw;
         const py = p.y * tw;
-        ctx.beginPath();
-        ctx.moveTo(px - 5, py);
-        ctx.lineTo(px + 5, py);
-        ctx.strokeStyle = hexAlpha(p.color || '#fff', 0.3);
-        ctx.lineWidth = 2.5;
-        ctx.lineCap = 'round';
-        ctx.stroke();
-        ctx.beginPath();
-        ctx.arc(px, py, p.crit ? 5.5 : 3.8, 0, Math.PI * 2);
-        ctx.fillStyle = p.color || '#fff';
-        ctx.shadowColor = p.color || '#fff';
-        ctx.shadowBlur = p.crit ? 10 : 5;
-        ctx.fill();
-        ctx.shadowBlur = 0;
+        const isMissile =
+          p.fromTower === 'cannon' ||
+          p.fromTower === 'arc' ||
+          p.fromTower === 'sniper';
+        let drew = false;
+        if (this.atlas && this.atlas.ready) {
+          drew = this.atlas.drawProjectile(ctx, px, py, p.crit ? 18 : 14, isMissile);
+        }
+        if (!drew) {
+          ctx.beginPath();
+          ctx.arc(px, py, p.crit ? 5.5 : 3.8, 0, Math.PI * 2);
+          ctx.fillStyle = p.color || '#fff';
+          ctx.shadowColor = p.color || '#fff';
+          ctx.shadowBlur = p.crit ? 10 : 5;
+          ctx.fill();
+          ctx.shadowBlur = 0;
+        }
       }
 
       for (const c of this.chains) {

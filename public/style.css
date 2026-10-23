@@ -819,6 +819,13 @@ button:active {
   box-shadow: 0 0 12px color-mix(in srgb, var(--c, var(--gold)) 40%, transparent);
 }
 
+.tower-icon {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.4));
+}
+
 .tower-card strong {
   display: block;
   font-size: 0.76rem;
@@ -875,6 +882,14 @@ button:active {
   height: 10px;
   border-radius: 50%;
   box-shadow: 0 0 8px color-mix(in srgb, currentColor 30%, transparent);
+}
+
+.enemy-icon {
+  width: 22px;
+  height: 22px;
+  object-fit: contain;
+  image-rendering: auto;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.45));
 }
 
 .enemy-row strong {

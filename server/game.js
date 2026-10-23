@@ -899,6 +899,7 @@ class TowerDefenseGame {
         y: p.y,
         color: p.color,
         crit: !!p.crit,
+        fromTower: p.fromTower || null,
       })),
       events: this.events.slice(),
       gold: this.gold,

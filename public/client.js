@@ -49,8 +49,15 @@
   let seenEvents = 0;
   let lastGameState = '';
 
-  const renderer = new window.TowerRenderer(canvas);
+  const atlas = window.TowerSprites ? new window.TowerSprites.SpriteAtlas() : null;
+  const renderer = new window.TowerRenderer(canvas, atlas);
   const Sfx = window.TowerSfx;
+  if (atlas) {
+    atlas.load().then(() => {
+      renderer.setAtlas(atlas);
+      renderer.invalidateGround();
+    });
+  }
 
   function getHighscore() {
     try {
@@ -226,8 +233,12 @@
           const lvl = t.levels?.[0];
           const perk = lvl?.perk || '';
           const dps = lvl?.fireRate ? Math.round(lvl.damage * lvl.fireRate) : 0;
+          const tSpr = window.TowerSprites && window.TowerSprites.MAP.towers[t.id];
+          const thumb = tSpr
+            ? `<img class="tower-icon" src="assets/sprites/kenney-td/t${String(tSpr.top).padStart(3, '0')}.png" alt="" width="28" height="28">`
+            : `<span class="tower-swatch" style="--c:${t.color}"></span>`;
           return `<button type="button" class="tower-card ${on} ${afford}" data-type="${i}">
-            <span class="tower-swatch" style="--c:${t.color}"></span>
+            ${thumb}
             <div>
               <strong>${t.name}${t.antiAir ? ' ✈' : ''}</strong>
               <span>${perk}</span>
@@ -246,14 +257,19 @@
       });
 
       if (enemyLegend) {
+        const spr = window.TowerSprites && window.TowerSprites.MAP.enemies;
         enemyLegend.innerHTML = (state.enemyLegend || [])
-          .map(
-            (e) => `<div class="enemy-row">
-            <span class="enemy-dot" style="background:${e.color}"></span>
+          .map((e) => {
+            const tid = spr && spr[e.kind];
+            const icon = tid
+              ? `<img class="enemy-icon" src="assets/sprites/kenney-td/t${String(tid).padStart(3, '0')}.png" alt="" width="22" height="22">`
+              : `<span class="enemy-dot" style="background:${e.color}"></span>`;
+            return `<div class="enemy-row">
+            ${icon}
             <strong>${e.label}</strong>
             <span>HP ${e.hp}${e.flying ? ' · luft' : ''}${e.armor ? ' · armor' : ''}</span>
-          </div>`
-          )
+          </div>`;
+          })
           .join('');
       }
 

@@ -98,11 +98,17 @@ Alternativt: `move` + `LEFT`/`RIGHT`/`UP`/`DOWN`, eller `bomb` = place.
 
 Traefik PathPrefix `/TowerDefense` + StripPrefix. Live: https://games.mercantec.tech/TowerDefense/
 
+## Sprites
+
+Kenney **Tower Defense (Top-Down)** — **CC0** (public domain).  
+Se `public/assets/ATTRIBUTION.md`.
+
 ## Filstruktur
 
 ```
 Tower-defense-tap/
-  public/           # hub UI, render.js, sfx.js, client.js
+  public/           # hub UI, render.js, sprites.js, sfx.js
+    assets/sprites/kenney-td/
   server/
     content/        # maps, towers, enemies, waves
     game.js         # simulation
